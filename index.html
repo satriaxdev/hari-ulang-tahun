@@ -1,0 +1,273 @@
+<!doctype html>
+
+<!--
+  Website "ditz Hacker"
+  Single-file HTML | CSS | JS
+  Features:
+  - Fullscreen animated canvas background (matrix rain + particle parallax)
+  - Terminal-style card with typing effect and fake commands
+  - Neon/glow styling and responsive layout
+  - Easy to customize colors, speeds, and text
+
+  Copy this file to index.html and open in a browser.
+--><html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hacker Vibe — Demo</title>
+  <style>
+    :root{
+      --bg:#020807;
+      --neon:#00ff6a; /* main neon color */
+      --muted: rgba(255,255,255,0.06);
+      --glass: rgba(0,0,0,0.45);
+      --accent: rgba(0,255,106,0.08);
+      --mono: 'SFMono-Regular', Consolas, "Liberation Mono", Menlo, monospace;
+    }
+    html,body{height:100%;margin:0;font-family: Inter, Roboto, system-ui, sans-serif;background:var(--bg);color:var(--neon);}/* full-screen canvas background */
+canvas#bgCanvas{position:fixed;inset:0;z-index:0;display:block}
+
+/* center container */
+.wrap{position:relative;z-index:5;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem}
+
+.card{
+  width:min(1100px,96%);
+  background: linear-gradient(180deg, rgba(0,0,0,0.25), rgba(255,255,255,0.02));
+  border-radius:14px;padding:1.25rem;box-shadow:0 10px 30px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.03);
+  backdrop-filter: blur(6px);
+  border:1px solid rgba(0,255,106,0.06);
+  display:grid;grid-template-columns:380px 1fr;gap:1rem;overflow:hidden
+}
+
+/* left panel: profile / quick info */
+.left{padding:1rem;background:linear-gradient(180deg, rgba(0,0,0,0.2), rgba(255,255,255,0.01));border-radius:10px}
+.avatar{width:100%;height:150px;border-radius:8px;background:linear-gradient(130deg,#00130a,#06210d);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:18px;color:var(--neon);box-shadow: inset 0 -6px 30px rgba(0,0,0,0.6)}
+.meta{margin-top:12px;color:rgba(255,255,255,0.7);font-size:14px}
+.meta b{color:var(--neon)}
+
+/* terminal area */
+.terminal{
+  background: linear-gradient(180deg, rgba(0,0,0,0.45), rgba(0,0,0,0.25));
+  border-radius:10px;padding:1rem;font-family:var(--mono);font-size:13px;line-height:1.5;color:var(--neon);box-shadow:0 8px 30px rgba(0,0,0,0.6);
+  border:1px solid rgba(0,255,106,0.06);overflow:hidden;min-height:320px;display:flex;flex-direction:column;
+}
+.term-header{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.dots{width:10px;height:10px;border-radius:50%;background:var(--muted);box-shadow:0 0 8px rgba(0,0,0,0.6)}
+.dots.red{background:#ff6b6b}
+.dots.yellow{background:#ffd66b}
+.dots.green{background:#7ef19c}
+
+.log{flex:1;overflow:auto;padding:6px;border-radius:6px;background:linear-gradient(180deg, rgba(0,0,0,0.05), transparent)}
+.input{display:flex;gap:8px;align-items:center;margin-top:8px}
+.prompt{min-width:60px}
+.cmdline{flex:1;background:transparent;border:0;border-bottom:1px dashed rgba(255,255,255,0.06);padding:6px;font-family:var(--mono);color:var(--neon);outline:none}
+
+.blink{animation:blink 1s steps(2,end) infinite}
+@keyframes blink{50%{opacity:0}}
+
+/* footer small hints */
+.hint{font-size:12px;color:rgba(255,255,255,0.45);margin-top:8px}
+
+/* responsive */
+@media (max-width:880px){.card{grid-template-columns:1fr;}.left{order:2}.terminal{order:1}}
+
+/* subtle grain overlay to make it moody */
+.grain{pointer-events:none;position:fixed;inset:0;z-index:10;mix-blend-mode:overlay;opacity:0.06;background-image:radial-gradient(rgba(255,255,255,0.02) 1px, transparent 1px);background-size:3px 3px}
+
+/* small neon title */
+.title{font-weight:700;font-size:18px;letter-spacing:1px;color:var(--neon);text-shadow:0 0 10px rgba(0,255,106,0.12)}
+
+  </style>
+</head>
+<body>
+  <canvas id="bgCanvas"></canvas>
+  <div class="grain"></div>  <div class="wrap">
+    <div class="card">
+      <div class="left">
+        <div class="avatar">Hacker Vibe</div>
+        <div class="meta">
+          <div><b>Handle:</b> @you</div>
+          <div><b>OS:</b> Unknown</div>
+          <div style="margin-top:6px"><b>Tools:</b> node | ssh | python | grep</div>
+        </div><div style="margin-top:14px;border-radius:8px;padding:10px;background:linear-gradient(180deg, rgba(0,0,0,0.1), transparent);">
+      <div class="title">Quick Links</div>
+      <ul style="padding-left:18px;margin:8px 0;color:rgba(255,255,255,0.7)">
+        <li>View logs</li>
+        <li>Run diagnostics</li>
+        <li>Open terminal</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="terminal" aria-live="polite">
+    <div class="term-header"><div class="dots red"></div><div class="dots yellow"></div><div class="dots green"></div><div style="flex:1"></div><div class="title">root@localhost</div></div>
+    <div id="log" class="log"></div>
+    <div class="input">
+      <div class="prompt">guest@pc:$</div>
+      <input id="cmd" class="cmdline" autocomplete="off" placeholder="ketik 'help' untuk daftar perintah" />
+    </div>
+    <div class="hint">Tip: ketik <code>matrix</code>, <code>scan</code>, atau <code>help</code></div>
+  </div>
+
+</div>
+
+  </div>  <script>
+    // ====== Canvas Background (Matrix rain + floaty particles) ======
+    const canvas = document.getElementById('bgCanvas');
+    const ctx = canvas.getContext('2d');
+    let W = canvas.width = innerWidth;
+    let H = canvas.height = innerHeight;
+
+    // resize handling
+    addEventListener('resize', () => {
+      W = canvas.width = innerWidth;
+      H = canvas.height = innerHeight;
+      init();
+    });
+
+    // Matrix columns
+    const fontSize = 16;
+    let columns = Math.floor(W / fontSize);
+    let drops = [];
+
+    // particle layer
+    let particles = [];
+
+    function init(){
+      columns = Math.floor(W / fontSize);
+      drops = new Array(columns).fill(0).map(()=>Math.floor(Math.random()*H/fontSize));
+      particles = [];
+      for(let i=0;i<80;i++){
+        particles.push({x:Math.random()*W,y:Math.random()*H, r:Math.random()*1.5+0.2, vx:(Math.random()-0.5)*0.2, vy:(Math.random()-0.5)*0.2});
+      }
+    }
+
+    // color palette
+    function matrixColor(alpha){
+      return 'rgba(0,255,140,'+alpha+')';
+    }
+
+    function draw(){
+      // translucent background for trailing effect
+      ctx.fillStyle = 'rgba(0,6,3,0.2)';
+      ctx.fillRect(0,0,W,H);
+
+      // draw particles (subtle orbs behind)
+      for(let p of particles){
+        p.x += p.vx; p.y += p.vy;
+        if(p.x<0) p.x=W; if(p.x>W) p.x=0; if(p.y<0) p.y=H; if(p.y>H) p.y=0;
+        const g = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*30);
+        g.addColorStop(0, 'rgba(0,255,120,0.06)');
+        g.addColorStop(1, 'rgba(0,255,120,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.r*12,0,Math.PI*2); ctx.fill();
+      }
+
+      // matrix rain
+      ctx.font = fontSize + 'px monospace';
+      for(let i=0;i<drops.length;i++){
+        const text = String.fromCharCode(0x30A0 + Math.random()*96);
+        const x = i * fontSize;
+        const y = drops[i]*fontSize;
+        ctx.fillStyle = matrixColor(0.9);
+        ctx.fillText(text, x, y);
+        // fade older characters with slight green glow
+        ctx.fillStyle = matrixColor(0.12);
+        ctx.fillText(text, x, y-12);
+
+        // reset drop
+        if(y > H && Math.random() > 0.975) drops[i] = 0;
+        drops[i]++;
+      }
+
+      // subtle scanline overlay
+      ctx.fillStyle = 'rgba(0,0,0,0.02)';
+      for(let yy=0; yy<H; yy+=4){
+        ctx.fillRect(0, yy, W, 1);
+      }
+    }
+
+    // init and animate
+    init();
+    function loop(){ draw(); requestAnimationFrame(loop); }
+    loop();
+
+    // ===== Terminal emulation (fake) =====
+    const logEl = document.getElementById('log');
+    const cmdEl = document.getElementById('cmd');
+
+    function pushLine(html=''){
+      const div = document.createElement('div');
+      div.innerHTML = html;
+      logEl.appendChild(div);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // startup text
+    const startup = [
+      "Booting virtual environment...",
+      "Kernel loaded: OK",
+      "Initializing network interfaces...",
+      "Connected to: localhost (127.0.0.1)",
+      "Type 'help' to see available commands."
+    ];
+    let idx=0;
+    (function typeStartup(){
+      if(idx<startup.length){ pushLine('<span style=\"color:rgba(255,255,255,0.7)\">'+startup[idx]+'</span>'); idx++; setTimeout(typeStartup, 420);
+      }else{ pushLine('<span class="blink">▌</span> Ready.'); }
+    })();
+
+    // commands
+    function runCommand(cmd){
+      cmd = cmd.trim();
+      if(!cmd) return;
+      pushLine('<span style="color:var(--neon)">guest@pc:$</span> '+escapeHtml(cmd));
+      const parts = cmd.split(' ');
+      const c = parts[0].toLowerCase();
+
+      if(c === 'help'){
+        pushLine('commands: <b>help</b>, <b>matrix</b>, <b>scan</b>, <b>clear</b>, <b>whoami</b>');
+      } else if(c === 'clear'){
+        logEl.innerHTML = '';
+      } else if(c === 'whoami'){
+        pushLine('guest');
+      } else if(c === 'matrix'){
+        pushLine('Activating matrix mode...');
+        // quick visual effect: increase density for a few seconds
+        const old = drops.length;
+        drops = new Array(Math.floor(columns*1.4)).fill(0).map(()=>Math.floor(Math.random()*H/fontSize));
+        setTimeout(()=>{ init(); }, 6000);
+      } else if(c === 'scan'){
+        pushLine('Scanning ports...');
+        fakeProgress('Scanning', 6, ()=>{ pushLine('Scan complete: no vulnerabilities found (simulated)'); });
+      } else {
+        pushLine('Perintah tidak dikenal: '+escapeHtml(cmd));
+      }
+    }
+
+    function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    function fakeProgress(label, steps=5, cb){
+      let i=0;
+      const tid = setInterval(()=>{
+        i++; pushLine(label+' '+i+'/'+steps);
+        if(i>=steps){ clearInterval(tid); if(cb) cb(); }
+      }, 600);
+    }
+
+    // handle Enter
+    cmdEl.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter'){
+        runCommand(cmdEl.value);
+        cmdEl.value='';
+      }
+    });
+
+    // small accessibility: focus input on click anywhere
+    document.body.addEventListener('click', ()=> cmdEl.focus());
+
+    // initial focus
+    setTimeout(()=>cmdEl.focus(),500);
+
+  </script></body>
+</html>
